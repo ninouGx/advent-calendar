@@ -1,0 +1,8 @@
+[package]
+name = "year_2025"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+progress_timer = { git = "https://github.com/ninouGx/progress_timer" }
+aoc_utils = { path = "../aoc_utils" }
