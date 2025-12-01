@@ -156,14 +156,14 @@ fn part2(input: &str) -> usize {
                 click_zero += 1;
             }
         }
-        println!(
+        /*println!(
             "Move: {:?}, from {} to {} ({}), clicks at 0: {}",
             mv.get_offset(),
             old_position,
             position,
             old_position + mv.get_offset(),
             click_zero
-        );
+        );*/
         password += click_zero as usize;
     }
     password
@@ -184,7 +184,7 @@ fn main() {
         "Part 2",
         Duration::from_secs(5),
         Duration::from_millis(100),
-        || part2_old(&input)
+        || part2(&input)
     );
     println!("Part 2: {}", result_part_2);
 }
@@ -219,7 +219,7 @@ case";
 R1000
 L80";
         let result = part2(input);
-        assert_eq!(result, 10);
+        assert_eq!(result, 11);
     }
 
     #[test]
