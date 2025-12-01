@@ -55,7 +55,7 @@ fn part1(input: &str) -> usize {
     password
 }
 
-#[deprecated(note = "This implementation is incorrect, see comments")]
+#[deprecated(note = "This implementation is completely shit, see comments")]
 /// # Why This Formula Is Broken (off by +2)
 ///
 /// ## The Formula
