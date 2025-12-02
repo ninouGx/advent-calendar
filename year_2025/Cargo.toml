@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 progress_timer = { git = "https://github.com/ninouGx/progress_timer" }
 aoc_utils = { path = "../aoc_utils" }
+fancy-regex = "0.16.2"
