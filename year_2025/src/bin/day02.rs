@@ -1,7 +1,13 @@
-use core::num;
-use std::time::Duration;
-use progress_timer::time_function;
+use std::{ sync::OnceLock, time::Duration };
 use fancy_regex::Regex;
+use progress_timer::time_function;
+use rayon::prelude::*;
+
+static RE_REPEAT_SEVERAL: OnceLock<Regex> = OnceLock::new();
+
+fn get_regex() -> &'static Regex {
+    RE_REPEAT_SEVERAL.get_or_init(|| Regex::new(r"^(.+?)\1+$").unwrap())
+}
 
 fn is_sequence_repeated(s: &str) -> bool {
     let len = s.len();
@@ -13,54 +19,40 @@ fn is_sequence_repeated(s: &str) -> bool {
 }
 
 fn is_sequence_repeated_several(s: &str) -> bool {
-    let regex = Regex::new(r"^(.+?)\1+$").unwrap();
-    regex.is_match(s).unwrap_or(false)
+    get_regex().is_match(s).unwrap_or(false)
+}
+
+fn parse_range(range: &str) -> (usize, usize) {
+    let mut parts = range.split('-');
+    let start: usize = parts.next().unwrap().parse().unwrap();
+    let end: usize = parts.next().unwrap().parse().unwrap();
+    (start, end)
 }
 
 fn part1(input: &str) -> usize {
-    input
-        .trim()
-        .split(',')
-        .map(|range| {
-            let mut parts = range.split('-');
-            let start: usize = parts.next().unwrap().parse().unwrap();
-            let end: usize = parts.next().unwrap().parse().unwrap();
-            let mut sum = 0;
-            for num in start..=end {
-                let s = num.to_string();
-                if is_sequence_repeated(&s) {
-                    sum += num;
-                }
-            }
-            sum
-        })
+    let ranges: Vec<(usize, usize)> = input.trim().split(',').map(parse_range).collect();
+
+    ranges
+        .into_par_iter()
+        .flat_map(|(start, end)| start..=end)
+        .filter(|num| is_sequence_repeated(&num.to_string()))
         .sum::<usize>()
 }
 
 fn part2(input: &str) -> usize {
-    input
-        .trim()
-        .split(',')
-        .map(|range| {
-            let mut parts = range.split('-');
-            let start: usize = parts.next().unwrap().parse().unwrap();
-            let end: usize = parts.next().unwrap().parse().unwrap();
-            let mut sum = 0;
-            for num in start..=end {
-                let s = num.to_string();
+    let ranges: Vec<(usize, usize)> = input.trim().split(',').map(parse_range).collect();
 
-                if is_sequence_repeated_several(&s) {
-                    sum += num;
-                }
-            }
-            sum
-        })
+    ranges
+        .into_par_iter()
+        .flat_map(|(start, end)| start..=end)
+        .filter(|num| is_sequence_repeated_several(&num.to_string()))
         .sum::<usize>()
 }
 
 fn main() {
     let is_test = false;
     let input = aoc_utils::get_input_for_day(is_test);
+
     let result_part_1 = time_function(
         "Part 1",
         Duration::from_secs(5),
