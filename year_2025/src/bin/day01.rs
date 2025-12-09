@@ -2,14 +2,14 @@ use std::{ str::FromStr, time::Duration };
 use progress_timer::time_function;
 
 #[derive(Debug)]
-enum Direction {
+enum Rotation {
     Left,
     Right,
 }
 
 #[derive(Debug)]
 struct Move {
-    direction: Direction,
+    rotation: Rotation,
     steps: u32,
 }
 
@@ -18,23 +18,23 @@ impl FromStr for Move {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let first_char = s.chars().next().ok_or("Empty string")?;
-        let direction = match first_char {
-            'L' => Direction::Left,
-            'R' => Direction::Right,
+        let rotation = match first_char {
+            'L' => Rotation::Left,
+            'R' => Rotation::Right,
             _ => {
-                return Err(format!("Invalid direction: {}", first_char));
+                return Err(format!("Invalid rotation: {}", first_char));
             }
         };
         let steps: u32 = s[1..].parse().map_err(|e| format!("Failed to parse steps: {}", e))?;
-        Ok(Move { direction, steps })
+        Ok(Move { rotation, steps })
     }
 }
 
 impl Move {
     fn get_offset(&self) -> i32 {
-        match self.direction {
-            Direction::Left => -(self.steps as i32),
-            Direction::Right => self.steps as i32,
+        match self.rotation {
+            Rotation::Left => -(self.steps as i32),
+            Rotation::Right => self.steps as i32,
         }
     }
 }

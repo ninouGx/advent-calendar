@@ -4,6 +4,16 @@ use std::fs::{ self, File };
 use std::io::Write;
 use std::process::Command;
 
+mod direction;
+mod position;
+mod grid;
+mod display;
+
+pub use direction::Direction;
+pub use position::Position;
+pub use grid::Grid;
+pub use display::{ display_grid, display_grid_animated, clear_screen_and_move_cursor };
+
 #[track_caller]
 pub fn get_input_for_day(is_test: bool) -> String {
     let caller = Location::caller();

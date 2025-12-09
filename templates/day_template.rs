@@ -35,50 +35,55 @@ mod tests {
 
     #[test]
     fn test_part1_example1() {
-        let input = "\
+        let input = r#"
 test
 input
-here";
+here
+"#.trim();
         let result = part1(input);
         assert_eq!(result, 0);
     }
 
     #[test]
     fn test_part1_example2() {
-        let input = "\
+        let input = r#"
 another
 test
-case";
+case
+"#.trim();
         let result = part1(input);
         assert_eq!(result, 0);
     }
 
     #[test]
     fn test_part2_example1() {
-        let input = "\
+        let input = r#"
 part2
 test
-input";
+input
+"#.trim();
         let result = part2(input);
         assert_eq!(result, 0);
     }
 
     #[test]
     fn test_part2_example2() {
-        let input = "\
+        let input = r#"
 another
 part2
-case";
+case
+"#.trim();
         let result = part2(input);
         assert_eq!(result, 0);
     }
 
     #[test]
     fn test_part2_edge_case() {
-        let input = "\
+        let input = r#"
 edge
 case
-test";
+test
+"#.trim();
         let result = part2(input);
         assert_eq!(result, 0);
     }
