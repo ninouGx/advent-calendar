@@ -1,5 +1,6 @@
 use std::{ cmp::Reverse, collections::HashSet, fmt::Display, str::FromStr, time::Duration };
 use progress_timer::time_function;
+use aoc_utils::create_pairs;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct Coordinate {
@@ -36,16 +37,6 @@ impl Display for Coordinate {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "({}, {}, {})", self.x, self.y, self.z)
     }
-}
-
-fn create_pairs(coords: &Vec<Coordinate>) -> Vec<(&Coordinate, &Coordinate)> {
-    let mut pairs = Vec::new();
-    for i in 0..coords.len() {
-        for j in i + 1..coords.len() {
-            pairs.push((&coords[i], &coords[j]));
-        }
-    }
-    pairs
 }
 
 fn part1(input: &str) -> usize {

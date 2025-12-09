@@ -14,6 +14,25 @@ pub use position::Position;
 pub use grid::Grid;
 pub use display::{ display_grid, display_grid_animated, clear_screen_and_move_cursor };
 
+/// Creates all unique pairs from a slice of items.
+/// Returns a vector of tuples containing references to pairs of items.
+///
+/// # Example
+/// ```
+/// let items = vec![1, 2, 3];
+/// let pairs = aoc_utils::create_pairs(&items);
+/// // pairs: [(&1, &2), (&1, &3), (&2, &3)]
+/// ```
+pub fn create_pairs<T>(items: &[T]) -> Vec<(&T, &T)> {
+    let mut pairs = Vec::new();
+    for i in 0..items.len() {
+        for j in i + 1..items.len() {
+            pairs.push((&items[i], &items[j]));
+        }
+    }
+    pairs
+}
+
 #[track_caller]
 pub fn get_input_for_day(is_test: bool) -> String {
     let caller = Location::caller();
