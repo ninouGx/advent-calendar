@@ -1,4 +1,4 @@
-use std::{ collections::HashSet, time::Duration };
+use std::time::Duration;
 use aoc_utils::{ Position, create_pairs };
 use progress_timer::time_function;
 use rayon::prelude::*;
@@ -13,54 +13,6 @@ impl Rectangle {
         let height = ((self.corners.0.y - self.corners.1.y).abs() as usize) + 1;
         width * height
     }
-
-    fn get_pos_inside(&self) -> HashSet<Position> {
-        let mut positions = HashSet::new();
-        let x_start = self.corners.0.x.min(self.corners.1.x);
-        let x_end = self.corners.0.x.max(self.corners.1.x);
-        let y_start = self.corners.0.y.min(self.corners.1.y);
-        let y_end = self.corners.0.y.max(self.corners.1.y);
-        for x in x_start..=x_end {
-            for y in y_start..=y_end {
-                positions.insert(Position { x, y });
-            }
-        }
-        positions
-    }
-}
-
-fn get_polygon_inside_positions(polygon: &Vec<Position>) -> HashSet<Position> {
-    let mut inside_positions = HashSet::new();
-    let min_x = polygon
-        .iter()
-        .map(|pos| pos.x)
-        .min()
-        .unwrap();
-    let max_x = polygon
-        .iter()
-        .map(|pos| pos.x)
-        .max()
-        .unwrap();
-    let min_y = polygon
-        .iter()
-        .map(|pos| pos.y)
-        .min()
-        .unwrap();
-    let max_y = polygon
-        .iter()
-        .map(|pos| pos.y)
-        .max()
-        .unwrap();
-
-    for x in min_x..=max_x {
-        for y in min_y..=max_y {
-            let pos = Position { x, y };
-            if is_inside_polygon(&pos, polygon) {
-                inside_positions.insert(pos);
-            }
-        }
-    }
-    inside_positions
 }
 
 /// Determines if a point is inside a polygon using the Ray Casting algorithm.
@@ -125,70 +77,91 @@ fn part1(input: &str) -> usize {
         .unwrap_or(0)
 }
 
-fn part2(input: &str) -> usize {
+fn part2_original(input: &str) -> usize {
+    use std::sync::atomic::{ AtomicUsize, Ordering };
+    use std::sync::Arc;
+
     let mut red_positions: Vec<Position> = input
         .lines()
         .map(|line| line.parse().unwrap())
         .collect();
     red_positions.push(red_positions[0].clone());
 
-    let mut green_positions: HashSet<Position> = red_positions.iter().cloned().collect();
+    // Build the full perimeter (for validation) - optimized with capacity hint
+    let mut green_positions: std::collections::HashSet<Position> = std::collections::HashSet::with_capacity(
+        red_positions.len() * 100
+    );
+    green_positions.extend(red_positions.iter().cloned());
+
     red_positions.windows(2).for_each(|pair| {
         let pos1 = &pair[0];
         let pos2 = &pair[1];
         let is_same_row = pos1.y == pos2.y;
         if is_same_row {
             (pos1.x.min(pos2.x)..=pos1.x.max(pos2.x)).for_each(|x| {
-                let pos = Position { x, y: pos1.y };
-                green_positions.insert(pos);
+                green_positions.insert(Position { x, y: pos1.y });
             });
         } else {
             (pos1.y.min(pos2.y)..=pos1.y.max(pos2.y)).for_each(|y| {
-                let pos = Position { x: pos1.x, y };
-                green_positions.insert(pos);
+                green_positions.insert(Position { x: pos1.x, y });
             });
         }
     });
 
+    // Use only polygon VERTICES as rectangle corners
     let mut candidate_positions: Vec<Position> = red_positions.iter().cloned().collect();
     candidate_positions.sort_unstable_by_key(|p| (p.x, p.y));
     candidate_positions.dedup();
 
-    create_pairs(&candidate_positions)
+    let total_pairs = (candidate_positions.len() * (candidate_positions.len() - 1)) / 2;
+    println!("ORIGINAL APPROACH: Checking {} vertex pairs...", total_pairs);
+    println!("This uses the slow point-by-point validation method.");
+    println!("Progress updates every 1%:\n");
+
+    // Atomic counter for accurate progress tracking across threads
+    let progress_counter = Arc::new(AtomicUsize::new(0));
+    let progress_interval = total_pairs / 100; // Report every 1%
+
+    let max_area = create_pairs(&candidate_positions)
         .par_iter()
         .filter_map(|(pos1, pos2)| {
-            let x1 = pos1.x;
-            let y1 = pos1.y;
-            let x2 = pos2.x;
-            let y2 = pos2.y;
+            // Atomic progress tracking
+            let current = progress_counter.fetch_add(1, Ordering::Relaxed);
+            if current % progress_interval == 0 && current > 0 {
+                let progress = (current * 100) / total_pairs;
+                eprintln!("Progress: {}% ({}/{} pairs)", progress, current, total_pairs);
+            }
 
-            // Skip if not a valid rectangle
-            if x1 == x2 || y1 == y2 {
+            // Skip invalid rectangles early
+            if pos1.x == pos2.x || pos1.y == pos2.y {
                 return None;
             }
 
-            let x_start = x1.min(x2);
-            let x_end = x1.max(x2);
-            let y_start = y1.min(y2);
-            let y_end = y1.max(y2);
+            let x_start = pos1.x.min(pos2.x);
+            let x_end = pos1.x.max(pos2.x);
+            let y_start = pos1.y.min(pos2.y);
+            let y_end = pos1.y.max(pos2.y);
 
-            // Early filtering: check the 4 corners first
-            // If any corner is outside, the whole rectangle is invalid
-            let corner1 = Position { x: x_start, y: y_start };
-            let corner2 = Position { x: x_end, y: y_start };
-            let corner3 = Position { x: x_start, y: y_end };
-            let corner4 = Position { x: x_end, y: y_end };
+            // Early filtering: check the 4 corners first (fast rejection)
+            let corners = [
+                Position { x: x_start, y: y_start },
+                Position { x: x_end, y: y_start },
+                Position { x: x_start, y: y_end },
+                Position { x: x_end, y: y_end },
+            ];
 
-            for corner in [&corner1, &corner2, &corner3, &corner4] {
+            for corner in &corners {
                 if !green_positions.contains(corner) && !is_inside_polygon(corner, &red_positions) {
-                    return None;
+                    return None; // Early exit - invalid corner
                 }
             }
 
-            // Now check ALL positions inside the rectangle
+            // ORIGINAL SLOW APPROACH: Check ALL interior points
+            // This is what makes it slow - potentially billions of point checks
             let all_inside = (x_start..=x_end).all(|x| {
                 (y_start..=y_end).all(|y| {
                     let pos = Position { x, y };
+                    // Try fast path first (boundary check), then slow path (ray-casting)
                     green_positions.contains(&pos) || is_inside_polygon(&pos, &red_positions)
                 })
             });
@@ -202,7 +175,113 @@ fn part2(input: &str) -> usize {
             }
         })
         .max()
+        .unwrap_or(0);
+
+    println!("Progress: 100% ({}/{} pairs) - COMPLETE!", total_pairs, total_pairs);
+    max_area
+}
+
+fn part2(input: &str) -> usize {
+    let mut polygon: Vec<Position> = input
+        .lines()
+        .map(|line| line.parse().unwrap())
+        .collect();
+    polygon.push(polygon[0].clone());
+
+    // Step 1: Extract unique x and y coordinates (coordinate compression)
+    let mut unique_x: Vec<i32> = polygon
+        .iter()
+        .map(|p| p.x)
+        .collect();
+    unique_x.sort_unstable();
+    unique_x.dedup();
+
+    let mut unique_y: Vec<i32> = polygon
+        .iter()
+        .map(|p| p.y)
+        .collect();
+    unique_y.sort_unstable();
+    unique_y.dedup();
+
+    // Step 2: Build compressed grid marking inside/boundary cells
+    let compressed_width = unique_x.len();
+    let compressed_height = unique_y.len();
+    let mut grid = vec![vec![false; compressed_width]; compressed_height];
+
+    // Mark all points in the polygon (boundary + interior)
+    for (comp_y, &actual_y) in unique_y.iter().enumerate() {
+        for (comp_x, &actual_x) in unique_x.iter().enumerate() {
+            let pos = Position { x: actual_x, y: actual_y };
+
+            // Check if this point is on the boundary or inside
+            let on_boundary = polygon
+                .windows(2)
+                .any(|edge| { is_point_on_segment(&pos, edge[0], edge[1]) });
+
+            let inside = !on_boundary && is_inside_polygon(&pos, &polygon);
+
+            grid[comp_y][comp_x] = on_boundary || inside;
+        }
+    }
+
+    // Step 3: Check all pairs of vertices for maximum rectangle
+    let vertices: Vec<Position> = polygon.iter().cloned().collect();
+    let mut vertices_dedup = vertices.clone();
+    vertices_dedup.sort_unstable_by_key(|p| (p.x, p.y));
+    vertices_dedup.dedup();
+
+    create_pairs(&vertices_dedup)
+        .par_iter()
+        .filter_map(|(pos1, pos2)| {
+            // Skip if not a valid rectangle
+            if pos1.x == pos2.x || pos1.y == pos2.y {
+                return None;
+            }
+
+            let x_start = pos1.x.min(pos2.x);
+            let x_end = pos1.x.max(pos2.x);
+            let y_start = pos1.y.min(pos2.y);
+            let y_end = pos1.y.max(pos2.y);
+
+            // Find compressed coordinates
+            let comp_x_start = unique_x.binary_search(&x_start).ok()?;
+            let comp_x_end = unique_x.binary_search(&x_end).ok()?;
+            let comp_y_start = unique_y.binary_search(&y_start).ok()?;
+            let comp_y_end = unique_y.binary_search(&y_end).ok()?;
+
+            // Check if all compressed cells in the rectangle are valid
+            for comp_y in comp_y_start..=comp_y_end {
+                for comp_x in comp_x_start..=comp_x_end {
+                    if !grid[comp_y][comp_x] {
+                        return None; // Rectangle contains invalid point
+                    }
+                }
+            }
+
+            // Valid rectangle - compute actual area
+            let width = (x_end - x_start + 1) as usize;
+            let height = (y_end - y_start + 1) as usize;
+            Some(width * height)
+        })
+        .max()
         .unwrap_or(0)
+}
+
+// Helper: Check if a point lies on a line segment
+fn is_point_on_segment(point: &Position, start: Position, end: Position) -> bool {
+    // Check if point is collinear and within bounds
+    let cross_product =
+        (point.y - start.y) * (end.x - start.x) - (point.x - start.x) * (end.y - start.y);
+
+    if cross_product != 0 {
+        return false; // Not collinear
+    }
+
+    // Check if within bounds
+    let x_in_range = point.x >= start.x.min(end.x) && point.x <= start.x.max(end.x);
+    let y_in_range = point.y >= start.y.min(end.y) && point.y <= start.y.max(end.y);
+
+    x_in_range && y_in_range
 }
 
 fn main() {
@@ -220,7 +299,7 @@ fn main() {
         "Part 2",
         Duration::from_secs(5),
         Duration::from_millis(100),
-        || part2(&input)
+        || part2_original(&input)
     );
     println!("Part 2: {}", result_part_2);
 }
