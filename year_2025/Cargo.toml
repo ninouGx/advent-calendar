@@ -8,3 +8,4 @@ progress_timer = { git = "https://github.com/ninouGx/progress_timer" }
 aoc_utils = { path = "../aoc_utils" }
 fancy-regex = "0.16.2"
 rayon = "1.11.0"
+good_lp = "1.14.2"
